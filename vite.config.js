@@ -7,8 +7,8 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
       build: {
         rollupOptions: {
           input: './itchio.html'
-        }
-        // target: 'esnext'
+        },
+        target: 'esnext'
       },
       server: {
         open: 'itchio.html'
@@ -21,8 +21,8 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
       root: 'src',
       build: {
         outDir: '../dist',
-        emptyOutDir: true
-        // target: 'esnext'
+        emptyOutDir: true,
+        target: 'esnext'
       }
     }
   }

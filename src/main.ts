@@ -1,6 +1,11 @@
 import GUI from "lil-gui"
 
-import example_texture_url from "./images/example.png?url"
+// Method 1 of loading URLs in Vite: use an import
+// import example_texture_url from "./images/example.png?url"
+
+// Method 2: https://vitejs.dev/guide/assets.html#new-url-url-import-meta-url
+let texture_name = "example";
+let example_texture_url = new URL(`./images/${texture_name}.png`, import.meta.url).href;
 
 // The variables we might want to tune while playing
 const CONFIG = {
@@ -18,27 +23,26 @@ function handle_resize() {
   canvas.height = canvas.clientHeight;
 }
 document.addEventListener("resize", handle_resize);
-// initial resize, to set the canvas pixel size to the actual screen size 
+// resize on start
 handle_resize();
 
-let example_texture = new Image;
-example_texture.addEventListener("load", _event => {
-  // if you have multiple images, this callback will need to be smarter
-  on_finish_loading();
-});
-// due to web weirdness, .src must be set after .addEventListener("load")
-example_texture.src = example_texture_url;
-
-const loading_screen_element = document.querySelector<HTMLDivElement>("#loading_screen")!;
-// it's good practice to wait for user input, and also required if your game has sound
-function on_finish_loading() {
-  loading_screen_element.innerText = "Press to start!";
-
-  document.addEventListener("pointerdown", _event => {
-    loading_screen_element.style.opacity = "0";
-    requestAnimationFrame(every_frame);
-  }, { once: true });
+// from https://www.fabiofranchino.com/log/load-an-image-with-javascript-using-await/
+export function imageFromUrl(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous'; // to avoid CORS if used with Canvas
+        img.src = url
+        img.onload = () => {
+            resolve(img);
+        }
+        img.onerror = e => {
+            reject(e);
+        }
+    })
 }
+
+// we can use top level await :)
+let example_texture = await imageFromUrl(example_texture_url);
 
 // actual game logic
 let player_pos = { x: 0, y: 0 };
@@ -133,3 +137,14 @@ document.addEventListener("keyup", event => {
       break;
   }
 });
+
+// The loading screen is done in HTML so it loads instantly
+const loading_screen_element = document.querySelector<HTMLDivElement>("#loading_screen")!;
+
+// By the time we run this code, everything's loaded and we're ready to start
+loading_screen_element.innerText = "Press to start!";
+// It's good practice to wait for user input, and also required if your game has sound
+document.addEventListener("pointerdown", _event => {
+  loading_screen_element.style.opacity = "0";
+  requestAnimationFrame(every_frame);
+}, { once: true });
