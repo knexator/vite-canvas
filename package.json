@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "ghpages_build": "tsc && vite build --mode include_frame"
+    
   },
   "devDependencies": {
     "typescript": "^5.0.2",
