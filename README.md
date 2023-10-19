@@ -1,8 +1,10 @@
+# Template for TypeScript Webgames
+
 How to use:
 
 - The first time you open this, run `npm install`
 - Every time you want to work on it, run `npm run dev`
-- To publish, run `npm run build` and then `upload_to_itchio.bat` (you'll need to set up [butler](https://itch.io/docs/butler/))
+- To publish, run `npm run update` (you'll need to set up [butler](https://itch.io/docs/butler/))
 
 Steps I followed to create the project:
 
