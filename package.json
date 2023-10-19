@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "update": "tsc && vite build && butler push ./dist YOURUSERNAME/YOURGAMENAME:html",
     "ghpages_build": "tsc && vite build --mode include_frame"
-    
   },
   "devDependencies": {
     "typescript": "^5.0.2",

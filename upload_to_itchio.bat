@@ -1,1 +1,0 @@
-butler push .\dist your_name/your_game_name:html 
