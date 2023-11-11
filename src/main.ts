@@ -18,27 +18,19 @@ gui.add(CONFIG, "move_speed", 10, 500);
 const canvas = document.querySelector<HTMLCanvasElement>("#game_canvas")!;
 const ctx = canvas.getContext("2d")!;
 
-function handle_resize() {
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
-}
-document.addEventListener("resize", handle_resize);
-// resize on start
-handle_resize();
-
 // from https://www.fabiofranchino.com/log/load-an-image-with-javascript-using-await/
 export function imageFromUrl(url: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous'; // to avoid CORS if used with Canvas
-        img.src = url
-        img.onload = () => {
-            resolve(img);
-        }
-        img.onerror = e => {
-            reject(e);
-        }
-    })
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous'; // to avoid CORS if used with Canvas
+    img.src = url
+    img.onload = () => {
+      resolve(img);
+    }
+    img.onerror = e => {
+      reject(e);
+    }
+  })
 }
 
 // we can use top level await :)
@@ -53,6 +45,13 @@ function every_frame(cur_timestamp: number) {
   // in seconds
   let delta_time = (cur_timestamp - last_timestamp) / 1000;
   last_timestamp = cur_timestamp;
+
+  // handle resize
+  if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+    // .clientWidth is the element's real size, .width is a canvas-specific property: the rendering size
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+  }
 
   // update
   if (input_state.up) {
