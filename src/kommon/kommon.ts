@@ -159,6 +159,16 @@ export function cameraTransform(
     ctx.scale(scaleX, scaleY);
 }
 
+export function rotateCtxAroundPoint(
+    ctx: CanvasRenderingContext2D,
+    center: Vec2,
+    turns: number,
+): void {
+    ctx.translate(-center.x, -center.y);
+    ctx.rotate(turns * Math.PI * 2);
+    ctx.translate(center.x, center.y);
+}
+
 /** Only for Vite, and only for reference! you must paste it into your script :( */
 // function absoluteUrl(url: string): string {
 //     return new URL(url, import.meta.url).href;

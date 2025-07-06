@@ -1,5 +1,5 @@
 import { Grid2D } from "./kommon/grid2D";
-import { cameraTransform, last, single } from "./kommon/kommon";
+import { cameraTransform, deepcopy, last, rotateCtxAroundPoint, single } from "./kommon/kommon";
 import { Rect } from "./kommon/rect";
 import { Vec2 } from "./kommon/vec2";
 
@@ -12,7 +12,7 @@ class GameState {
     public trees: Grid2D<boolean>,
     public land: Grid2D<boolean>,
     public crates: Vec2[],
-    public elephant_pos: Vec2,
+    public elephant_butt: Vec2,
     public elephant_dir: Vec2,
   ) { }
 
@@ -27,19 +27,102 @@ class GameState {
     return new GameState(trees, land, crates, elephant_pos, elephant_dir);
   }
 
-  afterInput(input: Vec2): GameState {
+  get elephant_head(): Vec2 {
+    return this.elephant_butt.add(this.elephant_dir);
+  }
+
+  // General philosophy: many small functions that modify part of the game state,
+  // returning null if it's not a valid modification. In TypeScript, "foo?.bar()"
+  // means "if foo is null, return undefined; else, return foo.bar()", and we use
+  // "xxx ?? null" to convert undefineds to null (javascript is quirky like that)
+  afterInput(dir: Vec2): GameState | null {
+    if (dir.equal(this.elephant_dir)) {
+      // move elephant forward
+      return this.
+        pushAt(this.elephant_head.add(dir), dir)?.
+        onlyMoveElephant(dir) ?? null;
+    }
+    if (dir.equal(this.elephant_dir.neg())) {
+      // move elephant backward
+      return this.
+        pushAt(this.elephant_butt.add(dir), dir)?.
+        onlyMoveElephant(dir) ?? null;
+    }
+
+    // rotating elephant
+    return this.
+      pushAt(this.elephant_head.add(dir), dir)?.
+      pushAt(this.elephant_butt.add(dir), this.elephant_dir.neg())?.
+      onlyRotateElephant(dir) ?? null;
+  }
+
+  onlyMoveElephant(dir: Vec2): GameState | null {
     return new GameState(
       this.trees,
       this.land,
       this.crates,
-      this.elephant_pos.add(input),
+      this.elephant_butt.add(dir),
+      this.elephant_dir,
+    ).checkElephantPos();
+  }
+
+  onlyRotateElephant(new_dir: Vec2): GameState | null {
+    return new GameState(
+      this.trees,
+      this.land,
+      this.crates,
+      this.elephant_butt,
+      new_dir,
+    ).checkElephantPos();
+  }
+
+  checkElephantPos(): GameState | null {
+    if (this.waterAt(this.elephant_butt)) return null;
+    if (this.obstacleAt(this.elephant_butt)) return null;
+    if (this.obstacleAt(this.elephant_head)) return null;
+    return this;
+  }
+
+  // TODO: crates in water
+  pushAt(pos: Vec2, dir: Vec2): GameState | null {
+    // can't push obstacles!
+    if (this.obstacleAt(pos)) return null;
+
+    const new_crates = deepcopy(this.crates);
+    for (let k = 0; k < this.crates.length; k++) {
+      if (this.crates[k].equal(pos)) {
+        const new_pos = pos.add(dir);
+        // no multipush in this game; making it multipush 
+        // would be as easy as calling again .pushAt here
+        if (this.obstacleAt(new_pos)) return null;
+        new_crates[k] = new_pos;
+      }
+    }
+
+    return new GameState(
+      this.trees,
+      this.land,
+      new_crates,
+      this.elephant_butt,
       this.elephant_dir,
     );
   }
 
+  // out of bounds positions count as non trees
+  obstacleAt(pos: Vec2): boolean {
+    return this.trees.getV(pos, false);
+  }
+
+  // out of bounds positions count as water
+  waterAt(pos: Vec2): boolean {
+    return !this.land.getV(pos, false);
+  }
+
   drawElephant(camera_bounds: Rect): void {
     cameraTransform(ctx, camera_bounds);
-    ctx.translate(this.elephant_pos.x, this.elephant_pos.y);
+    ctx.translate(this.elephant_butt.x, this.elephant_butt.y);
+    // a bit hacky to work with the commands as they originally were
+    rotateCtxAroundPoint(ctx, new Vec2(-0.5, -0.5), this.elephant_dir.turns() + 0.5);
 
     // tail
     ctx.beginPath();
@@ -62,7 +145,7 @@ class GameState {
     ctx.strokeStyle = "#000";
     ctx.stroke();
 
-    ctx.translate(this.elephant_dir.x, this.elephant_dir.y);
+    ctx.translate(-1, 0);
 
     // TUSK (upper)
     ctx.beginPath();
@@ -212,6 +295,35 @@ class GameState {
       }
     })
 
+    this.crates.forEach(pos => {
+      cameraTransform(ctx, camera_bounds);
+      ctx.translate(pos.x, pos.y);
+
+      ctx.beginPath();
+      ctx.rect(0.15, 0.15, 0.7, 0.7);
+      ctx.fillStyle = "#ca6e43";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.rect(0.25, 0.25, 0.5, 0.5);
+      ctx.fillStyle = "#eea160";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.lineWidth = 0.1;
+      ctx.moveTo(0.2, 0.2);
+      ctx.lineTo(0.8, 0.8);
+      ctx.strokeStyle = "#ca6e43";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.lineWidth = 0.1;
+      ctx.moveTo(0.2, 0.8);
+      ctx.lineTo(0.8, 0.2);
+      ctx.strokeStyle = "#ca6e43";
+      ctx.stroke();
+    })
+
     this.drawElephant(camera_bounds);
   }
 
@@ -254,7 +366,10 @@ function every_frame(cur_timestamp: number) {
     const cur_input = input_queue.shift()!;
     switch (cur_input.type) {
       case "dir":
-        game_states_history.push(last(game_states_history).afterInput(cur_input.dir));
+        const new_state = last(game_states_history).afterInput(cur_input.dir);
+        if (new_state != null) {
+          game_states_history.push(new_state);
+        }
         break;
       case "undo":
         if (game_states_history.length > 1) game_states_history.pop();

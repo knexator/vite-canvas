@@ -84,6 +84,10 @@ export class Vec2 {
         );
     }
 
+    neg(): Vec2 {
+        return new Vec2(-this.x, -this.y);
+    }
+
     perp(): Vec2 {
         return new Vec2(-this.y, this.x);
     }
@@ -99,6 +103,18 @@ export class Vec2 {
 
     rotateTurns(turns: number): Vec2 {
         return this.rotate(turns * 2 * Math.PI);
+    }
+
+    turnsBetween(other: Vec2): number {
+        const turns_1 = this.turns();
+        const turns_2 = other.turns();
+        let diff = turns_2 - turns_1;
+        
+        // Normalize to [-0.5, 0.5] range (shortest angle)
+        while (diff > 0.5) diff -= 1;
+        while (diff < -0.5) diff += 1;
+
+        return diff;
     }
 
     equal(other: Vec2): boolean {
