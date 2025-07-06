@@ -70,6 +70,13 @@ export class Vec2 {
         );
     }
 
+    div(other: Vec2): Vec2 {
+        return new Vec2(
+            this.x / other.x,
+            this.y / other.y,
+        );
+    }
+
     scale(s: number): Vec2 {
         return new Vec2(
             this.x * s,
@@ -132,5 +139,20 @@ export class Vec2 {
 
     turns(): number {
         return this.radians() / (Math.PI * 2);
+    }
+
+    withAspectRatio(target_ratio: number, mode: 'grow' | 'shrink') : Vec2 {
+        const actual_ratio = this.x / this.y;
+        if (actual_ratio < target_ratio) {
+            switch (mode) {
+                case "grow": return this.mul(new Vec2(target_ratio / actual_ratio, 1));
+                case "shrink": return this.mul(new Vec2(1, actual_ratio / target_ratio));
+            };
+        } else if (actual_ratio > target_ratio) {
+            switch (mode) {
+                case "grow": return this.mul(new Vec2(1, actual_ratio / target_ratio));
+                case "shrink": return this.mul(new Vec2(target_ratio / actual_ratio, 1));
+            };
+        } else return this;
     }
 }

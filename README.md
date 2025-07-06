@@ -1,5 +1,7 @@
 # Sample grid-based game
 
+Based on https://hkmg.itch.io/an-elephants-journey-to-find-its-mate
+
 How to use:
 
 - The first time you open this, run `npm install`

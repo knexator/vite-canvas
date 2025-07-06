@@ -1,3 +1,6 @@
+import { Rect } from "./rect";
+import { Vec2 } from "./vec2";
+
 export function deepcopy<T>(thing: T): T {
     // TODO: lots to do
     if (Array.isArray(thing)) {
@@ -23,6 +26,11 @@ export function repeat<T>(n: number, thing: T): T[] {
 export function last<T>(arr: T[]): T {
     if (arr.length == 0) throw new Error("empty");
     return arr[arr.length - 1];
+}
+
+export function single<T>(arr: T[]): T {
+    if (arr.length != 1) throw new Error("expected one element");
+    return arr[0];
 }
 
 export function fromRange<T>(lo: number, hi: number, callback: (index: number) => T): T[] {
@@ -135,6 +143,20 @@ export function lerpHexColor(a: string, b: string, t: number): string {
 
 
     return `#${((rr << 16) + (rg << 8) + (rb | 0)).toString(16).padStart(6, '0').slice(-6)}`
+}
+
+/// Apply a transformation to ctx so that points drawn at camera.top_left appear
+/// at the top left of the screen, and points drawn at camera.top_left.add(camera.size)
+/// appear at the bottom right of the screen.
+export function cameraTransform(
+    ctx: CanvasRenderingContext2D, 
+    camera: Rect,
+): void {
+    ctx.resetTransform();
+    ctx.translate(-camera.top_left.x, -camera.top_left.y);
+    const scaleX = ctx.canvas.width / camera.size.x;
+    const scaleY = ctx.canvas.height / camera.size.y;
+    ctx.scale(scaleX, scaleY);
 }
 
 /** Only for Vite, and only for reference! you must paste it into your script :( */

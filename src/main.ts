@@ -1,46 +1,242 @@
-import GUI from "lil-gui"
-
-// Method 1 of loading URLs in Vite: use an import
-// import example_texture_url from "./images/example.png?url"
-
-// Method 2: https://vitejs.dev/guide/assets.html#new-url-url-import-meta-url
-let texture_name = "example";
-let example_texture_url = new URL(`./images/${texture_name}.png`, import.meta.url).href;
-
-// The variables we might want to tune while playing
-const CONFIG = {
-  move_speed: 100,
-};
-
-const gui = new GUI();
-gui.add(CONFIG, "move_speed", 10, 500);
+import { Grid2D } from "./kommon/grid2D";
+import { cameraTransform, last, single } from "./kommon/kommon";
+import { Rect } from "./kommon/rect";
+import { Vec2 } from "./kommon/vec2";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game_canvas")!;
 const ctx = canvas.getContext("2d")!;
 
-// from https://www.fabiofranchino.com/log/load-an-image-with-javascript-using-await/
-export function imageFromUrl(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'Anonymous'; // to avoid CORS if used with Canvas
-    img.src = url
-    img.onload = () => {
-      resolve(img);
-    }
-    img.onerror = e => {
-      reject(e);
-    }
-  })
+// actual game logic
+class GameState {
+  constructor(
+    public trees: Grid2D<boolean>,
+    public land: Grid2D<boolean>,
+    public crates: Vec2[],
+    public elephant_pos: Vec2,
+    public elephant_dir: Vec2,
+  ) { }
+
+  static fromAscii(ascii: string): GameState {
+    const chars = Grid2D.fromAscii(ascii);
+    const trees = chars.map((_, c) => c == '#');
+    const land = chars.map((_, c) => c != 'x');
+    const crates = chars.find((_, c) => c == 'c').map(({ pos }) => pos);
+    const elephant_pos = single(chars.find((_, c) => c == 'e')).pos;
+    const elephant_head_pos = single(chars.find((_, c) => c == 'f')).pos;
+    const elephant_dir = elephant_head_pos.sub(elephant_pos);
+    return new GameState(trees, land, crates, elephant_pos, elephant_dir);
+  }
+
+  afterInput(input: Vec2): GameState {
+    return new GameState(
+      this.trees,
+      this.land,
+      this.crates,
+      this.elephant_pos.add(input),
+      this.elephant_dir,
+    );
+  }
+
+  drawElephant(camera_bounds: Rect): void {
+    cameraTransform(ctx, camera_bounds);
+    ctx.translate(this.elephant_pos.x, this.elephant_pos.y);
+
+    // tail
+    ctx.beginPath();
+    ctx.moveTo(0.8765, 0.4422);
+    ctx.lineTo(0.8765, 0.5578);
+    ctx.lineTo(0.98, 0.5);
+    ctx.closePath();
+    ctx.fillStyle = "#949eae";
+    ctx.fill();
+    ctx.lineWidth = 0.02;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // body
+    ctx.beginPath();
+    ctx.arc(0.4, 0.5, 0.48, -2.5559, 2.5559);
+    ctx.fillStyle = "#949eae";
+    ctx.fill();
+    ctx.lineWidth = 0.04;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    ctx.translate(this.elephant_dir.x, this.elephant_dir.y);
+
+    // TUSK (upper)
+    ctx.beginPath();
+    ctx.moveTo(0.3128, 0.4);
+    ctx.lineTo(0.2, 0.3457);
+    ctx.lineWidth = 0.1;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    ctx.lineWidth = 0.06;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#f9f9f9";
+    ctx.stroke();
+
+    // TUSK (lower)
+    ctx.beginPath();
+    ctx.moveTo(0.3128, 0.6);
+    ctx.lineTo(0.2, 0.6543);
+    ctx.lineWidth = 0.1;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    ctx.lineWidth = 0.06;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#f9f9f9";
+    ctx.stroke();
+
+    // TRUNK
+    ctx.beginPath();
+    ctx.rect(0.02, 0.4, 0.3, 0.2);
+    ctx.fillStyle = "#949eae";
+    ctx.fill();
+    ctx.lineWidth = 0.04;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // Trunk lines
+    ctx.beginPath();
+    ctx.moveTo(0.11, 0.4);
+    ctx.lineTo(0.11, 0.6);
+    ctx.moveTo(0.18, 0.4);
+    ctx.lineTo(0.18, 0.6);
+    ctx.lineWidth = 0.02;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // BODY
+    ctx.beginPath();
+    ctx.arc(0.7, 0.5, 0.4, 0.7227, 5.5590);
+    ctx.fillStyle = "#949eae";
+    ctx.fill();
+    ctx.lineWidth = 0.04;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // EARS (upper)
+    ctx.beginPath();
+    ctx.arc(0.7, 0.2, 0.18, 2.4674, 6.4728);
+    ctx.fillStyle = "#949eae";
+    ctx.fill();
+    ctx.lineWidth = 0.03;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // EARS (lower)
+    ctx.beginPath();
+    ctx.arc(0.7, 0.8, 0.18, -6.4728, -2.4674);
+    ctx.fillStyle = "#949eae";
+    ctx.fill();
+    ctx.lineWidth = 0.03;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // EYES (upper)
+    ctx.beginPath();
+    ctx.arc(0.45, 0.375, 0.125, 0, 7);
+    ctx.fillStyle = "#f9f9f9";
+    ctx.fill();
+    ctx.lineWidth = 0.02;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // EYES (lower)
+    ctx.beginPath();
+    ctx.arc(0.45, 0.625, 0.125, 0, 7);
+    ctx.fillStyle = "#f9f9f9";
+    ctx.fill();
+    ctx.lineWidth = 0.02;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    // Eye pupils
+    ctx.beginPath();
+    ctx.arc(0.4, 0.4, 0.025, 0, 7);
+    ctx.arc(0.4, 0.6, 0.025, 0, 7);
+    ctx.fillStyle = "#000";
+    ctx.fill();
+  }
+
+  draw() {
+    ctx.resetTransform();
+
+    // clear background
+    ctx.fillStyle = "#26c7d7";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const level_bounds = new Rect(Vec2.zero, this.land.size);
+    const camera_bounds = level_bounds.withAspectRatio(canvas.width / canvas.height, "grow", "center");
+
+    this.land.forEachV((pos, is_land) => {
+      if (is_land) {
+        cameraTransform(ctx, camera_bounds);
+        ctx.translate(pos.x, pos.y);
+
+        ctx.fillStyle = "#92ad10";
+        ctx.fillRect(0.001, 0.001, 0.998, 0.998);
+        ctx.fillStyle = "#4d9929";
+        ctx.fillRect(0.08, 0.08, 0.84, 0.84);
+      }
+    });
+
+    this.trees.forEachV((pos, is_tree) => {
+      if (is_tree) {
+        cameraTransform(ctx, camera_bounds);
+        ctx.translate(pos.x, pos.y);
+
+        ctx.beginPath();
+        ctx.moveTo(0.5, 0.5);
+        ctx.lineTo(0.3, 1);
+        ctx.lineTo(0.7, 1);
+        ctx.closePath();
+        ctx.fillStyle = "#5c2c06";
+        ctx.fill();
+
+        ctx.fillStyle = "#06402b";
+        ctx.beginPath();
+        ctx.arc(0.35, 0.55, 0.3, 0, 7);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0.65, 0.55, 0.3, 0, 7);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0.5, 0.3, 0.3, 0, 7);
+        ctx.fill();
+      }
+    })
+
+    this.drawElephant(camera_bounds);
+  }
+
+
 }
 
-// we can use top level await :)
-let example_texture = await imageFromUrl(example_texture_url);
+const levels_ascii = [
+  `
+####xxx
+#.①#xxx
+#..####
+#①..fe#
+#c.c..1
+#..####
+xxxxxxx
+`,
+];
 
-// actual game logic
-let player_pos = { x: 0, y: 0 };
+type InputKind = { type: 'dir', dir: Vec2 } | { type: 'undo' };
+const input_queue: InputKind[] = [];
+
+const game_states_history: GameState[] = [GameState.fromAscii(levels_ascii[0])];
 
 let last_timestamp = 0;
-// main loop; game logic lives here
+// main loop; engine logic lives here
 function every_frame(cur_timestamp: number) {
   // in seconds
   let delta_time = (cur_timestamp - last_timestamp) / 1000;
@@ -54,83 +250,45 @@ function every_frame(cur_timestamp: number) {
   }
 
   // update
-  if (input_state.up) {
-    player_pos.y -= delta_time * CONFIG.move_speed;
-  }
-  if (input_state.down) {
-    player_pos.y += delta_time * CONFIG.move_speed;
-  }
-  if (input_state.right) {
-    player_pos.x += delta_time * CONFIG.move_speed;
-  }
-  if (input_state.left) {
-    player_pos.x -= delta_time * CONFIG.move_speed;
+  while (input_queue.length > 0) {
+    const cur_input = input_queue.shift()!;
+    switch (cur_input.type) {
+      case "dir":
+        game_states_history.push(last(game_states_history).afterInput(cur_input.dir));
+        break;
+      case "undo":
+        if (game_states_history.length > 1) game_states_history.pop();
+        break;
+    }
   }
 
   // draw
-  ctx.fillStyle = "#5566aa"; // background color
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(example_texture, player_pos.x, player_pos.y);
-
-  ctx.fillStyle = "cyan";
-  ctx.fillRect(10, 10, player_pos.x - 10, player_pos.y - 10);
+  last(game_states_history).draw();
 
   requestAnimationFrame(every_frame);
 }
 
-// vanilla input handling
-let input_state = {
-  up: false,
-  down: false,
-  left: false,
-  right: false,
-}
-
 document.addEventListener("keydown", event => {
   if (event.repeat) return;
-  // this repetition can be removed/abstracted; left as an exercise to the reader
   switch (event.code) {
     case "ArrowUp":
     case "KeyW":
-      input_state.up = true;
+      input_queue.push({ type: 'dir', dir: Vec2.yneg });
       break;
     case "ArrowDown":
     case "KeyS":
-      input_state.down = true;
+      input_queue.push({ type: 'dir', dir: Vec2.ypos });
       break;
     case "ArrowLeft":
     case "KeyA":
-      input_state.left = true;
+      input_queue.push({ type: 'dir', dir: Vec2.xneg });
       break;
     case "ArrowRight":
     case "KeyD":
-      input_state.right = true;
+      input_queue.push({ type: 'dir', dir: Vec2.xpos });
       break;
-    default:
-      break;
-  }
-});
-
-document.addEventListener("keyup", event => {
-  // if you remove the repetition in "keydown", you also avoid this repetition
-  // and avoid potential desync bugs
-  switch (event.code) {
-    case "ArrowUp":
-    case "KeyW":
-      input_state.up = false;
-      break;
-    case "ArrowDown":
-    case "KeyS":
-      input_state.down = false;
-      break;
-    case "ArrowLeft":
-    case "KeyA":
-      input_state.left = false;
-      break;
-    case "ArrowRight":
-    case "KeyD":
-      input_state.right = false;
+    case "KeyZ":
+      input_queue.push({ type: 'undo' });
       break;
     default:
       break;
