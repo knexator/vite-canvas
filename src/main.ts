@@ -115,7 +115,7 @@ class GameState {
         const new_pos = pos.add(dir);
         // no multipush in this game; making it multipush 
         // would be as easy as calling again .pushAt here
-        if (this.obstacleAt(new_pos)) return null;
+        if (this.obstacleAt(new_pos) || this.anyCrateAt(new_pos)) return null;
         new_crates[k] = new Crate(new_pos, this.waterAt(new_pos));
       }
     }
