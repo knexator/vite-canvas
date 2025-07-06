@@ -473,6 +473,8 @@ class GameState {
 
 }
 
+const cur_level_index = 0;
+
 const levels_ascii = [
   `
 ####xxx
@@ -485,7 +487,8 @@ xxxxxxx
 `,
 ];
 
-type InputKind = { type: 'dir', dir: Vec2 } | { type: 'undo' };
+
+type InputKind = { type: 'dir', dir: Vec2 } | { type: 'undo' } | { type: 'reset' };
 const input_queue: InputKind[] = [];
 
 const game_states_history: GameState[] = [GameState.fromAscii(levels_ascii[0])];
@@ -517,6 +520,9 @@ function every_frame(cur_timestamp: number) {
       case "undo":
         if (game_states_history.length > 1) game_states_history.pop();
         break;
+      case "reset":
+        if (game_states_history.length > 1) game_states_history.push(GameState.fromAscii(levels_ascii[cur_level_index]))
+        break;
     }
   }
 
@@ -547,6 +553,9 @@ document.addEventListener("keydown", event => {
       break;
     case "KeyZ":
       input_queue.push({ type: 'undo' });
+      break;
+    case "KeyR":
+      input_queue.push({ type: 'reset' });
       break;
     default:
       break;
