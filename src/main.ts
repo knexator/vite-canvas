@@ -11,13 +11,21 @@ class Crate {
   constructor(
     public pos: Vec2,
     public in_water: boolean,
-  ) {}
+  ) { }
+}
+class Target {
+  constructor(
+    public pos: Vec2,
+    public index: number,
+  ) { }
 }
 class GameState {
   constructor(
     public trees: Grid2D<boolean>,
     public land: Grid2D<boolean>,
     public crates: Crate[],
+    public doors: Grid2D<number | null>,
+    public targets: Target[],
     public elephant_butt: Vec2,
     public elephant_dir: Vec2,
   ) { }
@@ -26,11 +34,13 @@ class GameState {
     const chars = Grid2D.fromAscii(ascii);
     const trees = chars.map((_, c) => c == '#');
     const land = chars.map((_, c) => c != 'x');
-    const crates = chars.find((_, c) => c == 'c').map(({ pos }) => new Crate(pos, false));
+    const crates = chars.find((_, c) => c == 'c' || "❶❷❸❹".includes(c)).map(({ pos }) => new Crate(pos, false));
+    const doors = chars.map((_, c) => "1234".indexOf(c)).map((_, i) => i < 0 ? null : i + 1);
+    const targets = chars.map((_, c) => Math.max("①②③④".indexOf(c), "❶❷❸❹".indexOf(c))).find((p, i) => i >= 0).map(({ pos, element }) => new Target(pos, element + 1));
     const elephant_pos = single(chars.find((_, c) => c == 'e')).pos;
     const elephant_head_pos = single(chars.find((_, c) => c == 'f')).pos;
     const elephant_dir = elephant_head_pos.sub(elephant_pos);
-    return new GameState(trees, land, crates, elephant_pos, elephant_dir);
+    return new GameState(trees, land, crates, doors, targets, elephant_pos, elephant_dir);
   }
 
   get elephant_head(): Vec2 {
@@ -67,6 +77,8 @@ class GameState {
       this.trees,
       this.land,
       this.crates,
+      this.doors,
+      this.targets,
       this.elephant_butt.add(dir),
       this.elephant_dir,
     ).checkElephantPos();
@@ -77,6 +89,8 @@ class GameState {
       this.trees,
       this.land,
       this.crates,
+      this.doors,
+      this.targets,
       this.elephant_butt,
       new_dir,
     ).checkElephantPos();
@@ -110,19 +124,43 @@ class GameState {
       this.trees,
       this.land,
       new_crates,
+      this.doors,
+      this.targets,
       this.elephant_butt,
       this.elephant_dir,
     );
   }
 
-  // out of bounds positions count as non trees
+  anyCrateAt(pos: Vec2): boolean {
+    for (let crate of this.crates) {
+      if (crate.in_water) continue;
+      if (crate.pos.equal(pos)) return true;
+    }
+    return false;
+  }
+
+  // out of bounds positions count as no obstacle
   obstacleAt(pos: Vec2): boolean {
-    return this.trees.getV(pos, false);
+    return this.trees.getV(pos, false) || this.closedDoorAt(pos);
   }
 
   // out of bounds positions count as water
   waterAt(pos: Vec2): boolean {
     return !this.land.getV(pos, false) && !this.crates.some(crate => crate.pos.equal(pos) && crate.in_water);
+  }
+
+  closedDoorAt(pos: Vec2): boolean {
+    const door_id = this.doors.getV(pos);
+    if (door_id == null) return false;
+    return this.doorsClosed(door_id);
+  }
+
+  doorsClosed(door_id: number): boolean {
+    for (let target of this.targets) {
+      if (target.index != door_id) continue;
+      if (!this.anyCrateAt(target.pos)) return true;
+    }
+    return false;
   }
 
   drawElephant(camera_bounds: Rect): void {
@@ -254,12 +292,58 @@ class GameState {
     ctx.fill();
   }
 
+  static drawClosedDoor(): void {
+    ctx.beginPath();
+    ctx.rect(0, 0.4, 0.12, 0.6);
+    ctx.rect(0.88, 0.4, 0.12, 0.6);
+    ctx.fillStyle = "#525753";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.rect(0.12, 0.4, 0.76, 0.6);
+    ctx.fillStyle = "#bb6746";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0.5, 0.5179, 0.5137, 3.3674, 6.0461);
+    ctx.fillStyle = "#525753";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0.5, 0.5179, 0.3979, 3.4366, 5.9769);
+    ctx.fillStyle = "#bb6746";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.lineWidth = 0.05;
+    ctx.moveTo(0.25, 1);
+    ctx.lineTo(0.25, 0.2084);
+    ctx.moveTo(0.4167, 1);
+    ctx.lineTo(0.4167, 0.1288);
+    ctx.moveTo(0.5833, 1);
+    ctx.lineTo(0.5833, 0.1288);
+    ctx.moveTo(0.75, 1);
+    ctx.lineTo(0.75, 0.2084);
+    ctx.strokeStyle = "#803512";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.rect(0.12, 0.46, 0.76, 0.08);
+    ctx.rect(0.12, 0.76, 0.76, 0.08);
+    ctx.fillStyle = "#bb6746";
+    ctx.fill();
+    ctx.lineWidth = 0.03;
+    ctx.strokeStyle = "#803512";
+    ctx.stroke();
+  }
+
   draw() {
     ctx.resetTransform();
 
     // clear background
     ctx.fillStyle = "#26c7d7";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.lineCap = 'butt';
 
     const level_bounds = new Rect(Vec2.zero, this.land.size);
     const camera_bounds = level_bounds.withAspectRatio(canvas.width / canvas.height, "grow", "center");
@@ -301,6 +385,58 @@ class GameState {
         ctx.fill();
       }
     })
+
+    this.doors.forEachV((pos, door) => {
+      if (door == null) return;
+      cameraTransform(ctx, camera_bounds);
+      ctx.translate(pos.x, pos.y);
+
+      if (this.doorsClosed(door)) {
+        GameState.drawClosedDoor();
+      } else {
+        ctx.beginPath();
+        ctx.rect(0, 0.4, 0.12, 0.6);
+        ctx.rect(0.88, 0.4, 0.12, 0.6);
+        ctx.fillStyle = "#525753";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0.5, 0.5179, 0.4555, 3.3977, 6.0158);
+        ctx.lineWidth = 0.12;
+        ctx.strokeStyle = "#525753";
+        ctx.stroke();
+      }
+    });
+
+    this.targets.forEach(target => {
+      cameraTransform(ctx, camera_bounds);
+      ctx.translate(target.pos.x, target.pos.y);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, 1, 1);
+      ctx.clip();
+
+      ctx.beginPath();
+      ctx.lineDashOffset
+      ctx.lineWidth = 0.222;
+      ctx.moveTo(0.25, 0);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(0, 0.25);
+      ctx.moveTo(0.75, 0);
+      ctx.lineTo(1, 0);
+      ctx.lineTo(1, 0.25);
+      ctx.moveTo(0.25, 1);
+      ctx.lineTo(0, 1);
+      ctx.lineTo(0, 0.75);
+      ctx.moveTo(0.75, 1);
+      ctx.lineTo(1, 1);
+      ctx.lineTo(1, 0.75);
+      ctx.strokeStyle = "#8b5723";
+      ctx.stroke();
+
+      ctx.restore();
+    });
 
     this.crates.forEach(crate => {
       cameraTransform(ctx, camera_bounds);
