@@ -7,11 +7,17 @@ const canvas = document.querySelector<HTMLCanvasElement>("#game_canvas")!;
 const ctx = canvas.getContext("2d")!;
 
 // actual game logic
+class Crate {
+  constructor(
+    public pos: Vec2,
+    public in_water: boolean,
+  ) {}
+}
 class GameState {
   constructor(
     public trees: Grid2D<boolean>,
     public land: Grid2D<boolean>,
-    public crates: Vec2[],
+    public crates: Crate[],
     public elephant_butt: Vec2,
     public elephant_dir: Vec2,
   ) { }
@@ -20,7 +26,7 @@ class GameState {
     const chars = Grid2D.fromAscii(ascii);
     const trees = chars.map((_, c) => c == '#');
     const land = chars.map((_, c) => c != 'x');
-    const crates = chars.find((_, c) => c == 'c').map(({ pos }) => pos);
+    const crates = chars.find((_, c) => c == 'c').map(({ pos }) => new Crate(pos, false));
     const elephant_pos = single(chars.find((_, c) => c == 'e')).pos;
     const elephant_head_pos = single(chars.find((_, c) => c == 'f')).pos;
     const elephant_dir = elephant_head_pos.sub(elephant_pos);
@@ -90,12 +96,13 @@ class GameState {
 
     const new_crates = deepcopy(this.crates);
     for (let k = 0; k < this.crates.length; k++) {
-      if (this.crates[k].equal(pos)) {
+      if (this.crates[k].in_water) continue;
+      if (this.crates[k].pos.equal(pos)) {
         const new_pos = pos.add(dir);
         // no multipush in this game; making it multipush 
         // would be as easy as calling again .pushAt here
         if (this.obstacleAt(new_pos)) return null;
-        new_crates[k] = new_pos;
+        new_crates[k] = new Crate(new_pos, this.waterAt(new_pos));
       }
     }
 
@@ -115,7 +122,7 @@ class GameState {
 
   // out of bounds positions count as water
   waterAt(pos: Vec2): boolean {
-    return !this.land.getV(pos, false);
+    return !this.land.getV(pos, false) && !this.crates.some(crate => crate.pos.equal(pos) && crate.in_water);
   }
 
   drawElephant(camera_bounds: Rect): void {
@@ -295,32 +302,32 @@ class GameState {
       }
     })
 
-    this.crates.forEach(pos => {
+    this.crates.forEach(crate => {
       cameraTransform(ctx, camera_bounds);
-      ctx.translate(pos.x, pos.y);
+      ctx.translate(crate.pos.x, crate.pos.y);
 
       ctx.beginPath();
       ctx.rect(0.15, 0.15, 0.7, 0.7);
-      ctx.fillStyle = "#ca6e43";
+      ctx.fillStyle = crate.in_water ? "#655e39" : "#ca6e43";
       ctx.fill();
 
       ctx.beginPath();
       ctx.rect(0.25, 0.25, 0.5, 0.5);
-      ctx.fillStyle = "#eea160";
+      ctx.fillStyle = crate.in_water ? "#778952" : "#eea160";
       ctx.fill();
 
       ctx.beginPath();
       ctx.lineWidth = 0.1;
       ctx.moveTo(0.2, 0.2);
       ctx.lineTo(0.8, 0.8);
-      ctx.strokeStyle = "#ca6e43";
+      ctx.strokeStyle = crate.in_water ? "#655e39" : "#ca6e43";
       ctx.stroke();
 
       ctx.beginPath();
       ctx.lineWidth = 0.1;
       ctx.moveTo(0.2, 0.8);
       ctx.lineTo(0.8, 0.2);
-      ctx.strokeStyle = "#ca6e43";
+      ctx.fillStyle = crate.in_water ? "#655e39" : "#ca6e43";
       ctx.stroke();
     })
 
