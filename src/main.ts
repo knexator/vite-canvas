@@ -150,7 +150,7 @@ class GameState {
   }
 
   closedDoorAt(pos: Vec2): boolean {
-    const door_id = this.doors.getV(pos);
+    const door_id = this.doors.getV(pos, null);
     if (door_id == null) return false;
     return this.doorsClosed(door_id);
   }
