@@ -2,9 +2,10 @@
 name: Build & Deploy Webgame
 
 on:
+  # Runs on pushes targeting the default branch
   push:
-    branches:
-      - "**"  # Run on all branches
+    branches: ["main"]
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -16,7 +17,7 @@ permissions:
 
 # Allow one concurrent deployment
 concurrency:
-  group: 'pages-${{ github.ref_name }}'
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
@@ -38,11 +39,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build
-        env:
-          BASE_PATH: "/${{ github.ref_name }}"
-        run: |
-          echo "Using base path: $BASE_PATH"
-          npm run ghpages_build -- --base=$BASE_PATH
+        run: npm run ghpages_build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
