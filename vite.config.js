@@ -17,7 +17,7 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
   } else if (command === 'build') {
     // At build time, we only build the game itself, not the itch.io container
     return {
-      base: './',
+      base: process.env.BASE_PATH == "main" ? './' : process.env.BASE_PATH,
       root: 'src',
       build: {
         outDir: '../dist',
